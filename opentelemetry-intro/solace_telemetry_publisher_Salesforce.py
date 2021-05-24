@@ -2,9 +2,10 @@ import os
 
 """ Run this file then run how_to_publish_message.py so that it can listen to incoming messages """
 from opentelemetry import trace
-from opentelemetry.ext import jaeger
+from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchExportSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import SpanKind
 from solace.messaging.messaging_service import MessagingService
 from solace.messaging.resources.topic import Topic
@@ -26,15 +27,19 @@ broker_props = {"solace.messaging.transport.host": os.environ['SOLACE_HOST'],
                 "solace.messaging.authentication.scheme.basic.username": os.environ['SOLACE_USERNAME'],
                 "solace.messaging.authentication.scheme.basic.password": os.environ['SOLACE_PASSWORD']}
 
-trace.set_tracer_provider(TracerProvider())
-jaeger_exporter = jaeger.JaegerSpanExporter(
-    service_name="<Boomi> Listen for Salesforce Platform Account, publish Solace DriverUpserted",
+trace.set_tracer_provider(
+    TracerProvider(
+        resource=Resource.create({SERVICE_NAME: "my-helloworld-service"})
+    )
+)
+
+jaeger_exporter = JaegerExporter(
     agent_host_name="localhost",
     agent_port=6831,
 )
 
 trace.get_tracer_provider().add_span_processor(
-    BatchExportSpanProcessor(jaeger_exporter)
+    BatchSpanProcessor(jaeger_exporter)
 )
 
 tracer = trace.get_tracer(__name__)
@@ -54,9 +59,10 @@ parentSpan = tracer.start_span(
 messaging_service = MessagingService.builder().from_properties(broker_props).build()
 messaging_service.connect_async()
 
+trace_id = parentSpan.get_span_context().trace_id
+span_id = parentSpan.get_span_context().span_id
 
-trace_id = parentSpan.get_context().trace_id
-span_id = parentSpan.get_context().span_id
+
 print("parentSpan trace_id  on sender side:" + str(trace_id))
 print("parentSpan span_id  on sender side:" + str(span_id))
 

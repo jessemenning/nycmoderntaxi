@@ -22,14 +22,16 @@ def direct_message_publish(messaging_service: MessagingService, topic, message):
 
 outboundTopic = "opentelemetry/helloworld"
 
-broker_props = {"solace.messaging.transport.host": os.environ['SOLACE_HOST'],
-                "solace.messaging.service.vpn-name": os.environ['SOLACE_VPN'],
-                "solace.messaging.authentication.scheme.basic.username": os.environ['SOLACE_USERNAME'],
-                "solace.messaging.authentication.scheme.basic.password": os.environ['SOLACE_PASSWORD']}
+broker_props = {
+    "solace.messaging.transport.host": os.environ.get('SOLACE_HOST') or "localhost",
+    "solace.messaging.service.vpn-name": os.environ.get('SOLACE_VPN') or "default",
+    "solace.messaging.authentication.scheme.basic.username": os.environ.get('SOLACE_USERNAME') or "default",
+    "solace.messaging.authentication.scheme.basic.password": os.environ.get('SOLACE_PASSWORD') or "default"
+    }
 
 trace.set_tracer_provider(
     TracerProvider(
-        resource=Resource.create({SERVICE_NAME: "my-helloworld-service"})
+        resource=Resource.create({SERVICE_NAME: "<Boomi> Listen for Salesforce Platform Account, publish Solace DriverUpserted"})
     )
 )
 
@@ -53,11 +55,12 @@ parentSpan = tracer.start_span(
         "messaging.destination-kind": "topic",
         "messaging.protocol": "jcsmp",
         "messaging.protocol_version": "1.0",
-        "messaging.url": os.environ['SOLACE_HOST']}
+        "messaging.url": os.environ.get('SOLACE_HOST') or "localhost"
+        }
 )
 
 messaging_service = MessagingService.builder().from_properties(broker_props).build()
-messaging_service.connect_async()
+messaging_service.connect()
 
 trace_id = parentSpan.get_span_context().trace_id
 span_id = parentSpan.get_span_context().span_id

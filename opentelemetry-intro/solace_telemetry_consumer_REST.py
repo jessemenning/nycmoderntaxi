@@ -2,9 +2,10 @@ import os
 import time
 
 from opentelemetry import trace
-from opentelemetry.ext import jaeger
+from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchExportSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import SpanContext
 from solace.messaging.messaging_service import MessagingService
 from solace.messaging.resources.topic_subscription import TopicSubscription
@@ -40,15 +41,16 @@ class MessageHandlerImpl(MessageHandler):
 
 def direct_message_consume(messaging_service: MessagingService, topic_subscription: str):
     try:
-        trace.set_tracer_provider(TracerProvider())
-        jaeger_exporter = jaeger.JaegerSpanExporter(
-            service_name="<Solace> REST Messaging call to Security Co",
+        trace.set_tracer_provider(TracerProvider(
+            resource=Resource.create({SERVICE_NAME: "<Solace> REST Messaging call to Security Co"})
+        ))
+        jaeger_exporter = JaegerExporter(
             agent_host_name="localhost",
             agent_port=6831,
         )
 
         trace.get_tracer_provider().add_span_processor(
-            BatchExportSpanProcessor(jaeger_exporter)
+            BatchSpanProcessor(jaeger_exporter)
         )
 
         tracer = trace.get_tracer(__name__)
@@ -75,14 +77,17 @@ def direct_message_consume(messaging_service: MessagingService, topic_subscripti
 
 inboundTopic = "opentelemetry/helloworld"
 
-broker_props = {"solace.messaging.transport.host": os.environ['SOLACE_HOST'],
-                "solace.messaging.service.vpn-name": os.environ['SOLACE_VPN'],
-                "solace.messaging.authentication.scheme.basic.username": os.environ['SOLACE_USERNAME'],
-                "solace.messaging.authentication.scheme.basic.password": os.environ['SOLACE_PASSWORD']}
+broker_props = {
+    "solace.messaging.transport.host": os.environ.get('SOLACE_HOST') or "localhost",
+    "solace.messaging.service.vpn-name": os.environ.get('SOLACE_VPN') or "default",
+    "solace.messaging.authentication.scheme.basic.username": os.environ.get('SOLACE_USERNAME') or "default",
+    "solace.messaging.authentication.scheme.basic.password": os.environ.get('SOLACE_PASSWORD') or "default"
+    }
+
 
 # Initialize A messaging service + Connect to the broker
 messaging_service = MessagingService.builder().from_properties(broker_props).build()
-messaging_service.connect_async()
+messaging_service.connect()
 
 # Create a directory to write to file
 current_directory = os.getcwd()

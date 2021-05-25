@@ -7,4 +7,8 @@ opentelemetry-exporter-jaeger-proto-grpc==1.2.0
 opentelemetry-exporter-jaeger-thrift==1.2.0
 opentelemetry-sdk==1.2.0
 opentelemetry-semantic-conventions==0.21b0
-protobuf==3.17.0
+protobuf==3.17.1
+six==1.16.0
+solace-pubsubplus==1.0.0
+thrift==0.13.0
+wrapt==1.12.1
